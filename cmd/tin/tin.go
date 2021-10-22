@@ -1,7 +1,13 @@
 package main
 
-import "fmt"
+import (
+	"log"
+
+	"github.com/Supercaly/tinlang/pkg/tin"
+)
 
 func main() {
-	fmt.Println("Hello")
+	if err := tin.CompileFile("test/123.tin"); err != nil {
+		log.Fatal(err)
+	}
 }
