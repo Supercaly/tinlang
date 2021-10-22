@@ -22,7 +22,7 @@ func CompileFile(filePath string) (err error) {
 	program := parseProgramFromTokens(tokens)
 	fmt.Println(program)
 
-	asm := generateNasmAppleSilicon(program)
+	asm := generateNasmX8664(program)
 	fmt.Println(asm)
 
 	return err

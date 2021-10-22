@@ -2,7 +2,7 @@ package tin
 
 import "fmt"
 
-var intrisics = map[string]Intrinsic{
+var intrinsics = map[string]Intrinsic{
 	"+": IntrinsicPlus,
 }
 
@@ -19,7 +19,7 @@ func parseProgramFromTokens(tokens []Token) (program Program) {
 		case TokenTypeKeyword:
 			panic("parse keyword not implemented")
 		case TokenTypeWord:
-			intrinsic := intrisics[tokens[0].AsWord]
+			intrinsic := intrinsics[tokens[0].AsWord]
 			if intrinsic != -1 {
 				program = append(program, Op{
 					Type:           OpTypeIntrinsic,
