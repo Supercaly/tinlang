@@ -1,0 +1,12 @@
+# sum of two numbers
+2 3 +
+
+# difference of two numbers
+2 3 -
+3 2 -
+
+# product of two numbers
+2 3 *
+
+# divmod of two numbers
+#2 3 divmod
