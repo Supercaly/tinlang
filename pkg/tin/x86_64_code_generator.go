@@ -13,6 +13,7 @@ func generateNasmX8664(program Program) string {
 	gen.WriteString("global _start\n")
 
 	// Main function
+	gen.WriteString("\n")
 	gen.WriteString("_start:\n")
 	for _, inst := range program {
 		generateX8664Instruction(&gen, inst)
