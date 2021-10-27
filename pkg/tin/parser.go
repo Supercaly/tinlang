@@ -6,20 +6,20 @@ var intrinsics = map[string]Intrinsic{
 	"+": IntrinsicPlus,
 }
 
-func parseProgramFromTokens(tokens []Token) (program Program) {
+func parseProgramFromTokens(tokens []token) (program Program) {
 	for len(tokens) > 0 {
-		switch tokens[0].Type {
-		case TokenTypeIntLit:
+		switch tokens[0].kind {
+		case tokenKindIntLit:
 			program = append(program, Op{
 				Type:     OpTypePushInt,
-				ValueInt: tokens[0].AsIntLit,
+				ValueInt: tokens[0].asIntLit,
 				Token:    tokens[0],
 			})
 			tokens = tokens[1:]
-		case TokenTypeKeyword:
+		case tokenKindKeyword:
 			panic("parse keyword not implemented")
-		case TokenTypeWord:
-			intrinsic := intrinsics[tokens[0].AsWord]
+		case tokenKindWord:
+			intrinsic := intrinsics[tokens[0].asWord]
 			if intrinsic != -1 {
 				program = append(program, Op{
 					Type:           OpTypeIntrinsic,
@@ -28,7 +28,7 @@ func parseProgramFromTokens(tokens []Token) (program Program) {
 				})
 				tokens = tokens[1:]
 			} else {
-				panic(fmt.Sprintf("unknown intrinsic %s", tokens[0].AsWord))
+				panic(fmt.Sprintf("unknown intrinsic %s", tokens[0].asWord))
 			}
 		}
 	}

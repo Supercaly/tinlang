@@ -5,24 +5,28 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
-type TokenType int
+type tokenKind int
 
 const (
-	TokenTypeWord TokenType = iota
-	TokenTypeKeyword
-	TokenTypeIntLit
+	tokenKindWord tokenKind = iota
+	tokenKindKeyword
+	tokenKindIntLit
 )
 
-type Token struct {
-	Type      TokenType
-	AsWord    string
-	AsKeyword string
-	AsIntLit  int
+type token struct {
+	kind      tokenKind
+	asWord    string
+	asKeyword string
+	asIntLit  int
+	location  fileLocation
 }
 
-func tokenizeSource(source string) (out []Token) {
+func tokenizeSource(source string, fileName string) (out []token) {
+	location := fileLocation{fileName: fileName}
+
 	spaceRegex, err := regexp.Compile(`^\s`)
 	if err != nil {
 		panic(err)
@@ -42,6 +46,17 @@ func tokenizeSource(source string) (out []Token) {
 
 	for len(source) > 0 {
 		if spaceRegex.MatchString(source) {
+			switch source[0] {
+			case ' ':
+				location.col++
+			case '\n':
+				location.col = 0
+				location.row++
+			case '\r':
+				location.col = 0
+			default:
+				panic(fmt.Sprintf("unsupported whitespace character %v", source[0]))
+			}
 			source = source[1:]
 		} else if commentRegex.MatchString(source) {
 			idxs := commentRegex.FindIndex([]byte(source))
@@ -59,39 +74,43 @@ func tokenizeSource(source string) (out []Token) {
 				panic(err)
 			}
 			source = source[idxs[1]:]
-			out = append(out, Token{
-				Type:     TokenTypeIntLit,
-				AsIntLit: int(intLit),
+			out = append(out, token{
+				kind:     tokenKindIntLit,
+				asIntLit: int(intLit),
+				location: location,
 			})
 		} else if keywordRegex.MatchString(source) {
 			idxs := keywordRegex.FindIndex([]byte(source))
 			if idxs == nil {
 				panic("cannot find the end of a keyword")
 			}
-			out = append(out, Token{
-				Type:      TokenTypeKeyword,
-				AsKeyword: source[:idxs[1]],
+			out = append(out, token{
+				kind:      tokenKindKeyword,
+				asKeyword: source[:idxs[1]],
+				location:  location,
 			})
 			source = source[idxs[1]:]
 		} else {
-			idx := strings.IndexRune(source, ' ')
+			idx := strings.IndexFunc(source, unicode.IsSpace)
 			var word string
 			if idx == -1 {
 				word = source
+				source = ""
 			} else {
 				word = source[:idx]
 				source = source[idx:]
 			}
-			out = append(out, Token{
-				Type:   TokenTypeWord,
-				AsWord: word,
+			out = append(out, token{
+				kind:     tokenKindWord,
+				asWord:   word,
+				location: location,
 			})
 		}
 	}
 	return out
 }
 
-func (t TokenType) String() string {
+func (t tokenKind) String() string {
 	return [...]string{
 		"TokenTypeWord",
 		"TokenTypeKeyword",
@@ -99,16 +118,17 @@ func (t TokenType) String() string {
 	}[t]
 }
 
-func (t Token) String() (out string) {
+func (t token) String() (out string) {
 	out += "("
-	out += fmt.Sprintf("%s, ", t.Type)
-	switch t.Type {
-	case TokenTypeWord:
-		out += t.AsWord
-	case TokenTypeKeyword:
-		out += t.AsKeyword
-	case TokenTypeIntLit:
-		out += fmt.Sprint(t.AsIntLit)
+	out += fmt.Sprintf("%s ", t.location.String())
+	out += fmt.Sprintf("%s, ", t.kind)
+	switch t.kind {
+	case tokenKindWord:
+		out += t.asWord
+	case tokenKindKeyword:
+		out += t.asKeyword
+	case tokenKindIntLit:
+		out += fmt.Sprint(t.asIntLit)
 	}
 	out += ")"
 	return out

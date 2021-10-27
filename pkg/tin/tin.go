@@ -23,7 +23,8 @@ func CompileFile(option CompilerOption) (err error) {
 		panic(err)
 	}
 
-	tokens := tokenizeSource(string(source))
+	tokens := tokenizeSource(string(source), option.InputPath)
+	fmt.Println(tokens)
 	program := parseProgramFromTokens(tokens)
 	asm := generateNasmX8664(program)
 

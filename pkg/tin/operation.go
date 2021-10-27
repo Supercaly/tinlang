@@ -5,12 +5,11 @@ type OpType int
 const (
 	OpTypePushInt OpType = iota
 	OpTypeIntrinsic
-	OpTypeIf
 )
 
 type Op struct {
 	Type           OpType
-	Token          Token
+	Token          token
 	ValueInt       int
 	ValueIntrinsic Intrinsic
 }
