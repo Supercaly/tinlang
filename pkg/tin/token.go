@@ -39,7 +39,7 @@ func tokenizeSource(source string, fileName string) (out []token) {
 	if err != nil {
 		panic(err)
 	}
-	keywordRegex, err := regexp.Compile(`^(if|else)`)
+	keywordRegex, err := regexp.Compile(`^(if|do|end)`)
 	if err != nil {
 		panic(err)
 	}
@@ -55,22 +55,26 @@ func tokenizeSource(source string, fileName string) (out []token) {
 			case '\r':
 				location.col = 0
 			default:
-				panic(fmt.Sprintf("unsupported whitespace character %v", source[0]))
+				// TODO: manage all whitespace characters
+				panic(fmt.Sprintf("%s: unsupported whitespace character %v", location, source[0]))
 			}
 			source = source[1:]
 		} else if commentRegex.MatchString(source) {
 			idxs := commentRegex.FindIndex([]byte(source))
 			if idxs == nil {
-				panic("cannot find the end of a comment")
+				panic(fmt.Sprintf("%s: cannot find the end of a comment", location))
 			}
 			source = source[idxs[1]:]
+			// TODO: Comments don't increment the location
+			// This is not a big deal since at the end of a comment ther's always a new line
 		} else if intLitRegex.MatchString(source) {
 			idxs := intLitRegex.FindIndex([]byte(source))
 			if idxs == nil {
-				panic("cannot find the end of an integer literal")
+				panic(fmt.Sprintf("%s: cannot find the end of an integer literal", location))
 			}
 			intLit, err := strconv.ParseInt(source[:idxs[1]], 10, 64)
 			if err != nil {
+				// TODO: Better format this error message
 				panic(err)
 			}
 			source = source[idxs[1]:]
@@ -79,10 +83,11 @@ func tokenizeSource(source string, fileName string) (out []token) {
 				asIntLit: int(intLit),
 				location: location,
 			})
+			location.col += idxs[1]
 		} else if keywordRegex.MatchString(source) {
 			idxs := keywordRegex.FindIndex([]byte(source))
 			if idxs == nil {
-				panic("cannot find the end of a keyword")
+				panic(fmt.Sprintf("%s: cannot find the end of a keyword", location))
 			}
 			out = append(out, token{
 				kind:      tokenKindKeyword,
@@ -90,6 +95,7 @@ func tokenizeSource(source string, fileName string) (out []token) {
 				location:  location,
 			})
 			source = source[idxs[1]:]
+			location.col += idxs[1]
 		} else {
 			idx := strings.IndexFunc(source, unicode.IsSpace)
 			var word string
@@ -105,6 +111,7 @@ func tokenizeSource(source string, fileName string) (out []token) {
 				asWord:   word,
 				location: location,
 			})
+			location.col += len(word)
 		}
 	}
 	return out
@@ -112,9 +119,9 @@ func tokenizeSource(source string, fileName string) (out []token) {
 
 func (t tokenKind) String() string {
 	return [...]string{
-		"TokenTypeWord",
-		"TokenTypeKeyword",
-		"TokenTypeIntLit",
+		"tokenKindWord",
+		"tokenKindKeyword",
+		"tokenKindIntLit",
 	}[t]
 }
 

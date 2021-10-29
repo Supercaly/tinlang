@@ -1,35 +1,42 @@
 package tin
 
-import "fmt"
+import (
+	"fmt"
+)
 
-var intrinsics = map[string]Intrinsic{
-	"+": IntrinsicPlus,
+var intrinsicMap = map[string]Intrinsic{
+	"+":      IntrinsicPlus,
+	"-":      IntrinsicMinus,
+	"*":      IntrinsicTimes,
+	"divmod": IntrinsicDivMod,
 }
 
 func parseProgramFromTokens(tokens []token) (program Program) {
 	for len(tokens) > 0 {
 		switch tokens[0].kind {
 		case tokenKindIntLit:
-			program = append(program, Op{
-				Type:     OpTypePushInt,
+			program = append(program, Instruction{
+				Kind:     InstKindPushInt,
 				ValueInt: tokens[0].asIntLit,
-				Token:    tokens[0],
+				token:    tokens[0],
 			})
 			tokens = tokens[1:]
 		case tokenKindKeyword:
-			panic("parse keyword not implemented")
+			panic(fmt.Sprintf("%s: parse keyword not implemented", tokens[0].location))
 		case tokenKindWord:
-			intrinsic := intrinsics[tokens[0].asWord]
-			if intrinsic != -1 {
-				program = append(program, Op{
-					Type:           OpTypeIntrinsic,
+			intrinsic, exist := intrinsicMap[tokens[0].asWord]
+			if exist {
+				program = append(program, Instruction{
+					Kind:           InstKindIntrinsic,
 					ValueIntrinsic: intrinsic,
-					Token:          tokens[0],
+					token:          tokens[0],
 				})
 				tokens = tokens[1:]
 			} else {
-				panic(fmt.Sprintf("unknown intrinsic %s", tokens[0].asWord))
+				panic(fmt.Sprintf("%s: unknown intrinsic '%s'", tokens[0].location, tokens[0].asWord))
 			}
+		default:
+			panic("parseProgramFromTokens: unreachable")
 		}
 	}
 	return program

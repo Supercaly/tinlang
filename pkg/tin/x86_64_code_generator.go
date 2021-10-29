@@ -26,14 +26,16 @@ func generateNasmX8664(program Program) string {
 	return gen.String()
 }
 
-func generateX8664Instruction(gen *strings.Builder, inst Op) {
-	switch inst.Type {
-	case OpTypePushInt:
+func generateX8664Instruction(gen *strings.Builder, inst Instruction) {
+	switch inst.Kind {
+	case InstKindPushInt:
 		gen.WriteString("  ;; push int\n")
 		gen.WriteString(fmt.Sprintf("  mov rax, %d\n", inst.ValueInt))
 		gen.WriteString("  push rax\n")
-	case OpTypeIntrinsic:
+	case InstKindIntrinsic:
 		generateX8664Intrinsic(gen, inst.ValueIntrinsic)
+	default:
+		panic("generateX8664Instruction: unreachable")
 	}
 }
 
@@ -45,5 +47,26 @@ func generateX8664Intrinsic(gen *strings.Builder, intrinsic Intrinsic) {
 		gen.WriteString("  pop rax\n")
 		gen.WriteString("  add rax, rbx\n")
 		gen.WriteString("  push rax\n")
+	case IntrinsicMinus:
+		gen.WriteString("  ;; sub\n")
+		gen.WriteString("  pop rbx\n")
+		gen.WriteString("  pop rax\n")
+		gen.WriteString("  sub rax, rbx\n")
+		gen.WriteString("  push rax\n")
+	case IntrinsicTimes:
+		gen.WriteString("  ;; mul\n")
+		gen.WriteString("  pop rbx\n")
+		gen.WriteString("  pop rax\n")
+		gen.WriteString("  imul rbx\n")
+		gen.WriteString("  push rax\n")
+	case IntrinsicDivMod:
+		gen.WriteString("  ;; divmod\n")
+		gen.WriteString("  pop rbx\n")
+		gen.WriteString("  pop rax\n")
+		gen.WriteString("  idiv rbx\n")
+		gen.WriteString("  push rax\n")
+		gen.WriteString("  push rdx\n")
+	default:
+		panic("generateX8664Intrinsic: unreachable")
 	}
 }
