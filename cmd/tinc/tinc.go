@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -32,14 +33,23 @@ func main() {
 	}
 
 	inputFilePath := os.Args[0]
-	outputFilePath := strings.TrimSuffix(inputFilePath, filepath.Ext(inputFilePath)) + ".asm"
+	outputFilePathNoExt := strings.TrimSuffix(inputFilePath, filepath.Ext(inputFilePath))
 
 	option := tin.CompilerOption{
 		InputPath:  inputFilePath,
-		OutputPath: outputFilePath,
+		OutputPath: outputFilePathNoExt + ".asm",
 	}
 
 	if err := tin.CompileFile(option); err != nil {
+		log.Fatal(err)
+	}
+
+	nasmCmd := exec.Command("nasm", "-felf64", outputFilePathNoExt+".asm")
+	if err := nasmCmd.Run(); err != nil {
+		log.Fatal(err)
+	}
+	ldCmd := exec.Command("ld", "-o", outputFilePathNoExt, outputFilePathNoExt+".o")
+	if err := ldCmd.Run(); err != nil {
 		log.Fatal(err)
 	}
 }
