@@ -4,13 +4,6 @@ import (
 	"fmt"
 )
 
-var intrinsicMap = map[string]Intrinsic{
-	"+":      IntrinsicPlus,
-	"-":      IntrinsicMinus,
-	"*":      IntrinsicTimes,
-	"divmod": IntrinsicDivMod,
-}
-
 func parseProgramFromTokens(tokens []token) (program Program) {
 	for len(tokens) > 0 {
 		switch tokens[0].kind {
@@ -22,19 +15,27 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 			})
 			tokens = tokens[1:]
 		case tokenKindKeyword:
-			panic(fmt.Sprintf("%s: parse keyword not implemented", tokens[0].location))
+			keyword, exist := keywordMap[tokens[0].asKeyword]
+			if !exist {
+				panic(fmt.Sprintf("%s: unknown keyword '%s'", tokens[0].location, tokens[0].asKeyword))
+			}
+			program = append(program, Instruction{
+				Kind:         IntrinsicKeyword,
+				ValueKeyword: keyword,
+				token:        tokens[0],
+			})
+			tokens = tokens[:1]
 		case tokenKindWord:
 			intrinsic, exist := intrinsicMap[tokens[0].asWord]
-			if exist {
-				program = append(program, Instruction{
-					Kind:           InstKindIntrinsic,
-					ValueIntrinsic: intrinsic,
-					token:          tokens[0],
-				})
-				tokens = tokens[1:]
-			} else {
+			if !exist {
 				panic(fmt.Sprintf("%s: unknown intrinsic '%s'", tokens[0].location, tokens[0].asWord))
 			}
+			program = append(program, Instruction{
+				Kind:           InstKindIntrinsic,
+				ValueIntrinsic: intrinsic,
+				token:          tokens[0],
+			})
+			tokens = tokens[1:]
 		default:
 			panic("parseProgramFromTokens: unreachable")
 		}

@@ -39,7 +39,7 @@ func tokenizeSource(source string, fileName string) (out []token) {
 	if err != nil {
 		panic(err)
 	}
-	keywordRegex, err := regexp.Compile(`^(if|do|end)`)
+	keywordRegex, err := regexp.Compile(`^(if|else|end)`)
 	if err != nil {
 		panic(err)
 	}
