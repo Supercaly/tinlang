@@ -1,10 +1,12 @@
 package tin
 
+import "fmt"
+
 type InstKind int
 
 const (
 	InstKindPushInt InstKind = iota
-	IntrinsicKeyword
+	InstKeyword
 	InstKindIntrinsic
 )
 
@@ -16,18 +18,23 @@ type Instruction struct {
 	ValueIntrinsic Intrinsic
 }
 
-type Keyword int
+type KeywordKind int
 
 const (
-	KeywordIf Keyword = iota
-	KeywordElse
-	KeywordEnd
+	KeywordKindIf KeywordKind = iota
+	KeywordKindElse
+	KeywordKindEnd
 )
 
-var keywordMap = map[string]Keyword{
-	"if":   KeywordIf,
-	"else": KeywordElse,
-	"end":  KeywordEnd,
+var keywordMap = map[string]KeywordKind{
+	"if":   KeywordKindIf,
+	"else": KeywordKindElse,
+	"end":  KeywordKindEnd,
+}
+
+type Keyword struct {
+	Kind       KeywordKind
+	JmpAddress int
 }
 
 type Intrinsic int
@@ -40,6 +47,8 @@ const (
 
 	IntrinsicGreather
 	IntrinsicLess
+
+	IntrinsicPrint
 )
 
 var intrinsicMap = map[string]Intrinsic{
@@ -49,6 +58,48 @@ var intrinsicMap = map[string]Intrinsic{
 	"divmod": IntrinsicDivMod,
 	">":      IntrinsicGreather,
 	"<":      IntrinsicLess,
+	"print":  IntrinsicPrint,
 }
 
 type Program []Instruction
+
+func (i Instruction) String() (out string) {
+	// TODO: Better print the instruction
+	switch i.Kind {
+	case InstKindPushInt:
+		out += fmt.Sprint(i.ValueInt)
+	case InstKindIntrinsic:
+		out += i.ValueIntrinsic.String()
+	case InstKeyword:
+		out += i.ValueKeyword.Kind.String()
+	}
+	return out
+}
+
+func (ik InstKind) String() string {
+	return [...]string{
+		"InstKindPushInt",
+		"InstKeyword",
+		"InstKindIntrinsic",
+	}[ik]
+}
+
+func (k KeywordKind) String() string {
+	return [...]string{
+		"if",
+		"else",
+		"end",
+	}[k]
+}
+
+func (i Intrinsic) String() string {
+	return [...]string{
+		"+",
+		"-",
+		"*",
+		"divmod",
+		">",
+		"<",
+		"print",
+	}[i]
+}
