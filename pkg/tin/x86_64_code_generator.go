@@ -93,6 +93,9 @@ func generateX8664Instruction(gen *x86_64Generator, inst Instruction) {
 		generateX8664Keyword(gen, inst.ValueKeyword)
 	case InstKindIntrinsic:
 		generateX8664Intrinsic(gen, inst.ValueIntrinsic)
+	case InstKindFunCall:
+		gen.text.WriteString("  ;; funcall\n")
+		gen.text.WriteString(fmt.Sprintf("  call addr_%d\n", inst.ValueFunCall))
 	default:
 		panic(fmt.Sprintf("unknown instruction kind '%s'", inst.Kind))
 	}
@@ -112,6 +115,10 @@ func generateX8664Keyword(gen *x86_64Generator, keyword Keyword) {
 		if keyword.HasJmp {
 			gen.text.WriteString(fmt.Sprintf("  jmp addr_%d\n", keyword.JmpAddress))
 		}
+		if keyword.IsRet {
+			gen.text.WriteString("  push r15\n")
+			gen.text.WriteString("  ret\n")
+		}
 	case KeywordKindWhile:
 		gen.text.WriteString("  ;; while\n")
 	case KeywordKindDo:
@@ -119,6 +126,12 @@ func generateX8664Keyword(gen *x86_64Generator, keyword Keyword) {
 		gen.text.WriteString("  pop rax\n")
 		gen.text.WriteString("  test rax rax\n")
 		gen.text.WriteString(fmt.Sprintf("  jz addr_%d\n", keyword.JmpAddress))
+	case KeywordKindDef:
+		gen.text.WriteString("  ;; def\n")
+		gen.text.WriteString(fmt.Sprintf("  jmp addr_%d\n", keyword.JmpAddress))
+	case KeywordKindDefName:
+		gen.text.WriteString("  ;; def name\n")
+		gen.text.WriteString("  pop r15\n")
 	default:
 		panic(fmt.Sprintf("unknown keyword '%s'", keyword.Kind))
 	}

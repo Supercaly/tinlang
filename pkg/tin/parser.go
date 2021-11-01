@@ -8,6 +8,7 @@ import (
 func parseProgramFromTokens(tokens []token) (program Program) {
 	var ipStack []int
 	var ip int = 0
+	var defStack map[string]int = make(map[string]int)
 
 	for len(tokens) > 0 {
 		switch tokens[0].kind {
@@ -97,25 +98,63 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 					program[ip].ValueKeyword.JmpAddress = program[inst_addr].ValueKeyword.JmpAddress
 					program[inst_addr].ValueKeyword.HasJmp = true
 					program[inst_addr].ValueKeyword.JmpAddress = ip + 1
+				case KeywordKindDef:
+					program[inst_addr].ValueKeyword.HasJmp = true
+					program[inst_addr].ValueKeyword.JmpAddress = ip + 1
+					program[ip].ValueKeyword.IsRet = true
 				default:
 					panic(fmt.Sprintf("unexpected keyword '%s' as the preceder of 'end'", inst.ValueKeyword.Kind))
 				}
+				ip++
+			case KeywordKindDef:
+				ipStack = append(ipStack, ip)
 				ip++
 			default:
 				panic(fmt.Sprintf("unknown keyword '%s'", keyword))
 			}
 		case tokenKindWord:
 			intrinsic, exist := intrinsicMap[tokens[0].value]
-			if !exist {
-				panic(fmt.Sprintf("%s: unknown intrinsic '%s'", tokens[0].location, tokens[0].value))
+			// word is an intrinsic
+			if exist {
+				program = append(program, Instruction{
+					Kind:           InstKindIntrinsic,
+					ValueIntrinsic: intrinsic,
+					token:          tokens[0],
+				})
+				tokens = tokens[1:]
+				ip++
+			} else {
+				if len(ipStack) > 0 {
+					// check if word is the name of a function
+					def_addr := ipStack[len(ipStack)-1]
+					inst := program[def_addr]
+					if inst.Kind != InstKeyword || program[ipStack[len(ipStack)-1]].ValueKeyword.Kind != KeywordKindDef {
+						panic("boh")
+					}
+
+					program = append(program, Instruction{
+						Kind:         InstKeyword,
+						ValueKeyword: Keyword{Kind: KeywordKindDefName},
+						token:        tokens[0],
+					})
+					defStack[tokens[0].value] = ip
+					tokens = tokens[1:]
+					ip++
+				} else {
+					// a function call
+					if fun_addr, ok := defStack[tokens[0].value]; ok {
+						program = append(program, Instruction{
+							Kind:         InstKindFunCall,
+							ValueFunCall: fun_addr,
+							token:        tokens[0],
+						})
+						tokens = tokens[1:]
+						ip++
+					} else {
+						panic(fmt.Sprintf("%s: unknown intrinsic '%s'", tokens[0].location, tokens[0].value))
+					}
+				}
 			}
-			program = append(program, Instruction{
-				Kind:           InstKindIntrinsic,
-				ValueIntrinsic: intrinsic,
-				token:          tokens[0],
-			})
-			tokens = tokens[1:]
-			ip++
 		default:
 			panic("there is a problem with 'parseProgramFromTokens' because this should be unreachable")
 		}

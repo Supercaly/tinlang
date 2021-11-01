@@ -9,6 +9,7 @@ const (
 	InstKindPushString
 	InstKeyword
 	InstKindIntrinsic
+	InstKindFunCall
 )
 
 type Instruction struct {
@@ -18,6 +19,7 @@ type Instruction struct {
 	ValueString    string
 	ValueKeyword   Keyword
 	ValueIntrinsic Intrinsic
+	ValueFunCall   int
 }
 
 type KeywordKind int
@@ -28,6 +30,8 @@ const (
 	KeywordKindEnd
 	KeywordKindWhile
 	KeywordKindDo
+	KeywordKindDef
+	KeywordKindDefName
 )
 
 var keywordMap = map[string]KeywordKind{
@@ -36,12 +40,15 @@ var keywordMap = map[string]KeywordKind{
 	"end":   KeywordKindEnd,
 	"while": KeywordKindWhile,
 	"do":    KeywordKindDo,
+	"def":   KeywordKindDef,
+	"":      KeywordKindDefName,
 }
 
 type Keyword struct {
 	Kind       KeywordKind
 	JmpAddress int
 	HasJmp     bool
+	IsRet      bool
 }
 
 type Intrinsic int
@@ -96,6 +103,7 @@ func (ik InstKind) String() string {
 		"InstKindPushString",
 		"InstKeyword",
 		"InstKindIntrinsic",
+		"InstKindFunCall",
 	}[ik]
 }
 
@@ -106,6 +114,7 @@ func (k KeywordKind) String() string {
 		"end",
 		"while",
 		"do",
+		"def",
 	}[k]
 }
 

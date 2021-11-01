@@ -1,0 +1,14 @@
+def a_function
+    1 print
+end
+
+def another_function
+    0 > if
+        1 print
+    else
+        2 print
+    end
+end
+
+another_function
+a_function
