@@ -6,6 +6,7 @@ type InstKind int
 
 const (
 	InstKindPushInt InstKind = iota
+	InstKindPushString
 	InstKeyword
 	InstKindIntrinsic
 )
@@ -14,6 +15,7 @@ type Instruction struct {
 	Kind           InstKind
 	token          token
 	ValueInt       int
+	ValueString    string
 	ValueKeyword   Keyword
 	ValueIntrinsic Intrinsic
 }
@@ -78,6 +80,8 @@ func (i Instruction) String() (out string) {
 	switch i.Kind {
 	case InstKindPushInt:
 		out += fmt.Sprint(i.ValueInt)
+	case InstKindPushString:
+		out += i.ValueString
 	case InstKindIntrinsic:
 		out += i.ValueIntrinsic.String()
 	case InstKeyword:
@@ -89,6 +93,7 @@ func (i Instruction) String() (out string) {
 func (ik InstKind) String() string {
 	return [...]string{
 		"InstKindPushInt",
+		"InstKindPushString",
 		"InstKeyword",
 		"InstKindIntrinsic",
 	}[ik]

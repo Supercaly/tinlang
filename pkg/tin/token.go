@@ -13,6 +13,7 @@ const (
 	tokenKindWord tokenKind = iota
 	tokenKindKeyword
 	tokenKindIntLit
+	tokenKindStringLit
 )
 
 type token struct {
@@ -33,6 +34,11 @@ func tokenizeSource(source string, fileName string) (out []token) {
 		panic(err)
 	}
 	intLitRegex, err := regexp.Compile(`^\d+`)
+	if err != nil {
+		panic(err)
+	}
+	// TODO: Stirng literals regex doesn't recognize escaped strings
+	stringLitRegex, err := regexp.Compile(`^"[^"]*"`)
 	if err != nil {
 		panic(err)
 	}
@@ -77,6 +83,19 @@ func tokenizeSource(source string, fileName string) (out []token) {
 				location: location,
 			})
 			location.col += idxs[1]
+		} else if stringLitRegex.MatchString(source) {
+			idxs := stringLitRegex.FindIndex([]byte(source))
+			if idxs == nil {
+				panic(fmt.Sprintf("%s: cannot find the end of an string literal", location))
+			}
+			str := source[:idxs[1]]
+			source = source[idxs[1]:]
+			out = append(out, token{
+				kind:     tokenKindStringLit,
+				value:    str[1 : len(str)-1],
+				location: location,
+			})
+			location.col += idxs[1]
 		} else if keywordRegex.MatchString(source) {
 			idxs := keywordRegex.FindIndex([]byte(source))
 			if idxs == nil {
@@ -115,6 +134,7 @@ func (t tokenKind) String() string {
 		"tokenKindWord",
 		"tokenKindKeyword",
 		"tokenKindIntLit",
+		"tokenKindStringLit",
 	}[t]
 }
 

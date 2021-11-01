@@ -23,6 +23,14 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 			})
 			tokens = tokens[1:]
 			ip++
+		case tokenKindStringLit:
+			program = append(program, Instruction{
+				Kind:        InstKindPushString,
+				ValueString: tokens[0].value,
+				token:       tokens[0],
+			})
+			tokens = tokens[1:]
+			ip++
 		case tokenKindKeyword:
 			keyword, exist := keywordMap[tokens[0].value]
 			if !exist {
