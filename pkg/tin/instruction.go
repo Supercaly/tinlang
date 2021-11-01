@@ -24,17 +24,22 @@ const (
 	KeywordKindIf KeywordKind = iota
 	KeywordKindElse
 	KeywordKindEnd
+	KeywordKindWhile
+	KeywordKindDo
 )
 
 var keywordMap = map[string]KeywordKind{
-	"if":   KeywordKindIf,
-	"else": KeywordKindElse,
-	"end":  KeywordKindEnd,
+	"if":    KeywordKindIf,
+	"else":  KeywordKindElse,
+	"end":   KeywordKindEnd,
+	"while": KeywordKindWhile,
+	"do":    KeywordKindDo,
 }
 
 type Keyword struct {
 	Kind       KeywordKind
 	JmpAddress int
+	HasJmp     bool
 }
 
 type Intrinsic int
@@ -47,6 +52,9 @@ const (
 
 	IntrinsicGreather
 	IntrinsicLess
+	IntrinsicNotEqual
+
+	IntrinsicDup
 
 	IntrinsicPrint
 )
@@ -58,6 +66,8 @@ var intrinsicMap = map[string]Intrinsic{
 	"divmod": IntrinsicDivMod,
 	">":      IntrinsicGreather,
 	"<":      IntrinsicLess,
+	"!=":     IntrinsicNotEqual,
+	"dup":    IntrinsicDup,
 	"print":  IntrinsicPrint,
 }
 
@@ -89,6 +99,8 @@ func (k KeywordKind) String() string {
 		"if",
 		"else",
 		"end",
+		"while",
+		"do",
 	}[k]
 }
 
@@ -100,6 +112,8 @@ func (i Intrinsic) String() string {
 		"divmod",
 		">",
 		"<",
+		"!=",
+		"dup",
 		"print",
 	}[i]
 }

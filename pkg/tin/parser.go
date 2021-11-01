@@ -33,6 +33,7 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 			switch keyword {
 			case KeywordKindIf:
 				ipStack = append(ipStack, ip)
+				ip++
 			case KeywordKindElse:
 				if len(ipStack) == 0 {
 					panic("cannot parse the else of a non existing if")
@@ -40,29 +41,56 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 				if_addr := ipStack[len(ipStack)-1]
 				ipStack = ipStack[:len(ipStack)-1]
 				ipStack = append(ipStack, ip)
+				program[if_addr].ValueKeyword.HasJmp = true
 				program[if_addr].ValueKeyword.JmpAddress = ip + 1
+				ip++
+			case KeywordKindWhile:
+				ipStack = append(ipStack, ip)
+				ip++
+			case KeywordKindDo:
+				if len(ipStack) == 0 {
+					panic("'do' used without a preceding 'while'")
+				}
+				while_addr := ipStack[len(ipStack)-1]
+				ipStack = ipStack[:len(ipStack)-1]
+
+				inst := program[while_addr]
+				if inst.Kind != InstKeyword || inst.ValueKeyword.Kind != KeywordKindWhile {
+					panic("unexpected preceder parsing 'do'")
+				}
+				program[ip].ValueKeyword.HasJmp = true
+				program[ip].ValueKeyword.JmpAddress = while_addr
+				ipStack = append(ipStack, ip)
+				ip++
 			case KeywordKindEnd:
 				if len(ipStack) == 0 {
-					panic("cannot parse the end of a non existing block")
+					panic("'end' used without a preceding 'if' or 'while'")
 				}
 				inst_addr := ipStack[len(ipStack)-1]
 				ipStack = ipStack[:len(ipStack)-1]
 
 				inst := program[inst_addr]
 				if inst.Kind != InstKeyword {
-					panic("unexpected instruction parsing end block")
+					panic("unexpected preceder parsing 'end'")
 				}
 				switch program[inst_addr].ValueKeyword.Kind {
 				case KeywordKindIf:
+					program[inst_addr].ValueKeyword.HasJmp = true
 					program[inst_addr].ValueKeyword.JmpAddress = ip + 1
 				case KeywordKindElse:
 					// do nothing
+				case KeywordKindDo:
+					program[ip].ValueKeyword.HasJmp = true
+					program[ip].ValueKeyword.JmpAddress = program[inst_addr].ValueKeyword.JmpAddress
+					program[inst_addr].ValueKeyword.HasJmp = true
+					program[inst_addr].ValueKeyword.JmpAddress = ip + 1
 				default:
-					panic("unexpected keyword parsing end block")
+					panic(fmt.Sprintf("unexpected keyword '%s' as the preceder of 'end'", inst.ValueKeyword.Kind))
 				}
+				ip++
+			default:
+				panic(fmt.Sprintf("unknown keyword '%s'", keyword))
 			}
-
-			ip++
 		case tokenKindWord:
 			intrinsic, exist := intrinsicMap[tokens[0].asWord]
 			if !exist {

@@ -1,0 +1,4 @@
+10
+while dup 1 - 0 != do
+    dup print
+end
