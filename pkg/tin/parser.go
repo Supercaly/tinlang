@@ -2,6 +2,7 @@ package tin
 
 import (
 	"fmt"
+	"strconv"
 )
 
 func parseProgramFromTokens(tokens []token) (program Program) {
@@ -11,17 +12,21 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 	for len(tokens) > 0 {
 		switch tokens[0].kind {
 		case tokenKindIntLit:
+			intVal, err := strconv.ParseInt(tokens[0].value, 10, 64)
+			if err != nil {
+				panic(err)
+			}
 			program = append(program, Instruction{
 				Kind:     InstKindPushInt,
-				ValueInt: tokens[0].asIntLit,
+				ValueInt: int(intVal),
 				token:    tokens[0],
 			})
 			tokens = tokens[1:]
 			ip++
 		case tokenKindKeyword:
-			keyword, exist := keywordMap[tokens[0].asKeyword]
+			keyword, exist := keywordMap[tokens[0].value]
 			if !exist {
-				panic(fmt.Sprintf("%s: unknown keyword '%s'", tokens[0].location, tokens[0].asKeyword))
+				panic(fmt.Sprintf("%s: unknown keyword '%s'", tokens[0].location, tokens[0].value))
 			}
 			program = append(program, Instruction{
 				Kind:         InstKeyword,
@@ -92,9 +97,9 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 				panic(fmt.Sprintf("unknown keyword '%s'", keyword))
 			}
 		case tokenKindWord:
-			intrinsic, exist := intrinsicMap[tokens[0].asWord]
+			intrinsic, exist := intrinsicMap[tokens[0].value]
 			if !exist {
-				panic(fmt.Sprintf("%s: unknown intrinsic '%s'", tokens[0].location, tokens[0].asWord))
+				panic(fmt.Sprintf("%s: unknown intrinsic '%s'", tokens[0].location, tokens[0].value))
 			}
 			program = append(program, Instruction{
 				Kind:           InstKindIntrinsic,

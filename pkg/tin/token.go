@@ -3,7 +3,6 @@ package tin
 import (
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"unicode"
 )
@@ -17,11 +16,9 @@ const (
 )
 
 type token struct {
-	kind      tokenKind
-	asWord    string
-	asKeyword string
-	asIntLit  int
-	location  fileLocation
+	kind     tokenKind
+	value    string
+	location fileLocation
 }
 
 func tokenizeSource(source string, fileName string) (out []token) {
@@ -72,15 +69,11 @@ func tokenizeSource(source string, fileName string) (out []token) {
 			if idxs == nil {
 				panic(fmt.Sprintf("%s: cannot find the end of an integer literal", location))
 			}
-			intLit, err := strconv.ParseInt(source[:idxs[1]], 10, 64)
-			if err != nil {
-				// TODO: Better format this error message
-				panic(err)
-			}
+			intStr := source[:idxs[1]]
 			source = source[idxs[1]:]
 			out = append(out, token{
 				kind:     tokenKindIntLit,
-				asIntLit: int(intLit),
+				value:    intStr,
 				location: location,
 			})
 			location.col += idxs[1]
@@ -90,9 +83,9 @@ func tokenizeSource(source string, fileName string) (out []token) {
 				panic(fmt.Sprintf("%s: cannot find the end of a keyword", location))
 			}
 			out = append(out, token{
-				kind:      tokenKindKeyword,
-				asKeyword: source[:idxs[1]],
-				location:  location,
+				kind:     tokenKindKeyword,
+				value:    source[:idxs[1]],
+				location: location,
 			})
 			source = source[idxs[1]:]
 			location.col += idxs[1]
@@ -108,7 +101,7 @@ func tokenizeSource(source string, fileName string) (out []token) {
 			}
 			out = append(out, token{
 				kind:     tokenKindWord,
-				asWord:   word,
+				value:    word,
 				location: location,
 			})
 			location.col += len(word)
@@ -125,18 +118,6 @@ func (t tokenKind) String() string {
 	}[t]
 }
 
-func (t token) String() (out string) {
-	out += "("
-	out += fmt.Sprintf("%s ", t.location.String())
-	out += fmt.Sprintf("%s, ", t.kind)
-	switch t.kind {
-	case tokenKindWord:
-		out += t.asWord
-	case tokenKindKeyword:
-		out += t.asKeyword
-	case tokenKindIntLit:
-		out += fmt.Sprint(t.asIntLit)
-	}
-	out += ")"
-	return out
+func (t token) String() string {
+	return fmt.Sprintf("(%s, %s, %s)", t.location, t.kind, t.value)
 }
