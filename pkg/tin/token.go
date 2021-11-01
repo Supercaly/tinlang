@@ -22,27 +22,35 @@ type token struct {
 	location fileLocation
 }
 
+const (
+	spaceRegexStr   string = `^\s`
+	commentRegexStr string = `^#.*`
+	intLitRegexStr  string = `^\d+`
+	// TODO: Stirng literals regex doesn't recognize escaped strings
+	stringLitRegexStr string = `^"[^"]*"`
+	keywordRegexStr   string = `^(if|else|end|while|do|def)`
+)
+
 func tokenizeSource(source string, fileName string) (out []token) {
 	location := fileLocation{fileName: fileName}
 
-	spaceRegex, err := regexp.Compile(`^\s`)
+	spaceRegex, err := regexp.Compile(spaceRegexStr)
 	if err != nil {
 		panic(err)
 	}
-	commentRegex, err := regexp.Compile(`^#.*`)
+	commentRegex, err := regexp.Compile(commentRegexStr)
 	if err != nil {
 		panic(err)
 	}
-	intLitRegex, err := regexp.Compile(`^\d+`)
+	intLitRegex, err := regexp.Compile(intLitRegexStr)
 	if err != nil {
 		panic(err)
 	}
-	// TODO: Stirng literals regex doesn't recognize escaped strings
-	stringLitRegex, err := regexp.Compile(`^"[^"]*"`)
+	stringLitRegex, err := regexp.Compile(stringLitRegexStr)
 	if err != nil {
 		panic(err)
 	}
-	keywordRegex, err := regexp.Compile(`^(if|else|end|while|do)`)
+	keywordRegex, err := regexp.Compile(keywordRegexStr)
 	if err != nil {
 		panic(err)
 	}
