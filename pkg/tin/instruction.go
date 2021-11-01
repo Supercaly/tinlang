@@ -66,18 +66,33 @@ const (
 	IntrinsicDup
 
 	IntrinsicPrint
+
+	IntrinsicSyscall0
+	IntrinsicSyscall1
+	IntrinsicSyscall2
+	IntrinsicSyscall3
+	IntrinsicSyscall4
+	IntrinsicSyscall5
+	IntrinsicSyscall6
 )
 
 var intrinsicMap = map[string]Intrinsic{
-	"+":      IntrinsicPlus,
-	"-":      IntrinsicMinus,
-	"*":      IntrinsicTimes,
-	"divmod": IntrinsicDivMod,
-	">":      IntrinsicGreather,
-	"<":      IntrinsicLess,
-	"!=":     IntrinsicNotEqual,
-	"dup":    IntrinsicDup,
-	"print":  IntrinsicPrint,
+	"+":        IntrinsicPlus,
+	"-":        IntrinsicMinus,
+	"*":        IntrinsicTimes,
+	"divmod":   IntrinsicDivMod,
+	">":        IntrinsicGreather,
+	"<":        IntrinsicLess,
+	"!=":       IntrinsicNotEqual,
+	"dup":      IntrinsicDup,
+	"print":    IntrinsicPrint,
+	"syscall0": IntrinsicSyscall0,
+	"syscall1": IntrinsicSyscall1,
+	"syscall2": IntrinsicSyscall2,
+	"syscall3": IntrinsicSyscall3,
+	"syscall4": IntrinsicSyscall4,
+	"syscall5": IntrinsicSyscall5,
+	"syscall6": IntrinsicSyscall6,
 }
 
 type Program []Instruction
@@ -129,5 +144,12 @@ func (i Intrinsic) String() string {
 		"!=",
 		"dup",
 		"print",
+		"syscall0",
+		"syscall1",
+		"syscall2",
+		"syscall3",
+		"syscall4",
+		"syscall5",
+		"syscall6",
 	}[i]
 }
