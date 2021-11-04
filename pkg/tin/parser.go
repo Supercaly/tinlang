@@ -92,7 +92,8 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 					program[inst_addr].ValueKeyword.HasJmp = true
 					program[inst_addr].ValueKeyword.JmpAddress = ip + 1
 				case KeywordKindElse:
-					// do nothing
+					program[inst_addr].ValueKeyword.HasJmp = true
+					program[inst_addr].ValueKeyword.JmpAddress = ip + 1
 				case KeywordKindDo:
 					program[ip].ValueKeyword.HasJmp = true
 					program[ip].ValueKeyword.JmpAddress = program[inst_addr].ValueKeyword.JmpAddress

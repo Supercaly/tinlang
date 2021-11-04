@@ -23,11 +23,10 @@ type token struct {
 }
 
 const (
-	spaceRegexStr   string = `^\s`
-	commentRegexStr string = `^#.*`
-	intLitRegexStr  string = `^\d+`
-	// TODO: Stirng literals regex doesn't recognize escaped strings
-	stringLitRegexStr string = `^"[^"]*"`
+	spaceRegexStr     string = `^\s`
+	commentRegexStr   string = `^#.*`
+	intLitRegexStr    string = `^\d+`
+	stringLitRegexStr string = `^"([^"\\]|\\.)*"`
 	keywordRegexStr   string = `^(if|else|end|while|do|def)`
 )
 
@@ -96,6 +95,7 @@ func tokenizeSource(source string, fileName string) (out []token) {
 			if idxs == nil {
 				panic(fmt.Sprintf("%s: cannot find the end of an string literal", location))
 			}
+			// TODO: Unsupported multi-line strings
 			str := source[:idxs[1]]
 			source = source[idxs[1]:]
 			out = append(out, token{

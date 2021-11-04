@@ -1,12 +1,12 @@
 # sum of two numbers
-2 3 +
+2 3 + print
 
 # difference of two numbers
-2 3 -
-3 2 -
+2 3 - print
+3 2 - print
 
 # product of two numbers
-2 3 *
+2 3 * print
 
 # divmod of two numbers
-2 3 divmod
+2 3 divmod print print

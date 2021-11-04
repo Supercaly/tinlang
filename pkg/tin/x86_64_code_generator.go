@@ -71,7 +71,7 @@ func generateNasmX8664(program Program) string {
 	gen.text.WriteString("\n")
 	gen.text.WriteString("section .data\n")
 	for idx, str := range gen.strings {
-		gen.text.WriteString(fmt.Sprintf("str_%d: db \"%s\"\n", idx, str))
+		gen.text.WriteString(fmt.Sprintf("str_%d: db `%s`\n", idx, str))
 	}
 
 	return gen.text.String()
@@ -87,7 +87,7 @@ func generateX8664Instruction(gen *x86_64Generator, inst Instruction) {
 		gen.text.WriteString("  ;; push string\n")
 		gen.text.WriteString(fmt.Sprintf("  mov rax, %d\n", len(inst.ValueString)))
 		gen.text.WriteString("  push rax\n")
-		gen.text.WriteString(fmt.Sprintf("  push str_%d", len(gen.strings)))
+		gen.text.WriteString(fmt.Sprintf("  push str_%d\n", len(gen.strings)))
 		gen.strings = append(gen.strings, inst.ValueString)
 	case InstKeyword:
 		generateX8664Keyword(gen, inst.ValueKeyword)
@@ -106,10 +106,11 @@ func generateX8664Keyword(gen *x86_64Generator, keyword Keyword) {
 	case KeywordKindIf:
 		gen.text.WriteString("  ;; if\n")
 		gen.text.WriteString("  pop rax\n")
-		gen.text.WriteString("  test rax rax\n")
+		gen.text.WriteString("  test rax, rax\n")
 		gen.text.WriteString(fmt.Sprintf("  jz addr_%d\n", keyword.JmpAddress))
 	case KeywordKindElse:
 		gen.text.WriteString("  ;; else\n")
+		gen.text.WriteString(fmt.Sprintf("  jmp addr_%d\n", keyword.JmpAddress))
 	case KeywordKindEnd:
 		gen.text.WriteString("  ;; end\n")
 		if keyword.HasJmp {
@@ -124,7 +125,7 @@ func generateX8664Keyword(gen *x86_64Generator, keyword Keyword) {
 	case KeywordKindDo:
 		gen.text.WriteString("  ;; do\n")
 		gen.text.WriteString("  pop rax\n")
-		gen.text.WriteString("  test rax rax\n")
+		gen.text.WriteString("  test rax, rax\n")
 		gen.text.WriteString(fmt.Sprintf("  jz addr_%d\n", keyword.JmpAddress))
 	case KeywordKindDef:
 		gen.text.WriteString("  ;; def\n")
@@ -161,6 +162,7 @@ func generateX8664Intrinsic(gen *x86_64Generator, intrinsic Intrinsic) {
 		gen.text.WriteString("  ;; divmod\n")
 		gen.text.WriteString("  pop rbx\n")
 		gen.text.WriteString("  pop rax\n")
+		gen.text.WriteString("  xor rdx, rdx\n")
 		gen.text.WriteString("  idiv rbx\n")
 		gen.text.WriteString("  push rax\n")
 		gen.text.WriteString("  push rdx\n")
@@ -174,7 +176,7 @@ func generateX8664Intrinsic(gen *x86_64Generator, intrinsic Intrinsic) {
 		gen.text.WriteString("  cmovg rcx, rdx\n")
 		gen.text.WriteString("  push rcx\n")
 	case IntrinsicLess:
-		gen.text.WriteString("  ;; greather\n")
+		gen.text.WriteString("  ;; less\n")
 		gen.text.WriteString("  mov rcx, 0\n")
 		gen.text.WriteString("  mov rdx, 1\n")
 		gen.text.WriteString("  pop rbx\n")

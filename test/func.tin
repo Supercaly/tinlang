@@ -1,15 +1,5 @@
 def a_function
-    "Hello from a_function" 1 1 syscall3
+    "Hello from a_function\n" 1 1 syscall3
 end
 
-def another_function
-    "Hello from another_function" 1 1 syscall3
-    0 > if
-        "> 0" 1 1 syscall3
-    else
-        "< 0" 1 1 syscall3
-    end
-end
-
-1 another_function
 a_function
