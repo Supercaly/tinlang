@@ -18,41 +18,43 @@ func generateNasmX8664(program Program) string {
 	gen.text.WriteString("global _start\n")
 
 	// Main function
-	gen.text.WriteString("\n")
-	gen.text.WriteString("print:\n")
-	gen.text.WriteString("  mov     r9, -3689348814741910323\n")
-	gen.text.WriteString("  sub     rsp, 40\n")
-	gen.text.WriteString("  mov     BYTE [rsp+31], 10\n")
-	gen.text.WriteString("  lea     rcx, [rsp+30]\n")
-	gen.text.WriteString(".L2:\n")
-	gen.text.WriteString("  mov     rax, rdi\n")
-	gen.text.WriteString("  lea     r8, [rsp+32]\n")
-	gen.text.WriteString("  mul     r9\n")
-	gen.text.WriteString("  mov     rax, rdi\n")
-	gen.text.WriteString("  sub     r8, rcx\n")
-	gen.text.WriteString("  shr     rdx, 3\n")
-	gen.text.WriteString("  lea     rsi, [rdx+rdx*4]\n")
-	gen.text.WriteString("  add     rsi, rsi\n")
-	gen.text.WriteString("  sub     rax, rsi\n")
-	gen.text.WriteString("  add     eax, 48\n")
-	gen.text.WriteString("  mov     BYTE [rcx], al\n")
-	gen.text.WriteString("  mov     rax, rdi\n")
-	gen.text.WriteString("  mov     rdi, rdx\n")
-	gen.text.WriteString("  mov     rdx, rcx\n")
-	gen.text.WriteString("  sub     rcx, 1\n")
-	gen.text.WriteString("  cmp     rax, 9\n")
-	gen.text.WriteString("  ja      .L2\n")
-	gen.text.WriteString("  lea     rax, [rsp+32]\n")
-	gen.text.WriteString("  mov     edi, 1\n")
-	gen.text.WriteString("  sub     rdx, rax\n")
-	gen.text.WriteString("  xor     eax, eax\n")
-	gen.text.WriteString("  lea     rsi, [rsp+32+rdx]\n")
-	gen.text.WriteString("  mov     rdx, r8\n")
-	gen.text.WriteString("  mov     rax, 1\n")
-	gen.text.WriteString("  syscall\n")
-	gen.text.WriteString("  add     rsp, 40\n")
-	gen.text.WriteString("  ret\n")
-	gen.text.WriteString("\n")
+	{
+		gen.text.WriteString("\n")
+		gen.text.WriteString("print:\n")
+		gen.text.WriteString("  mov     r9, -3689348814741910323\n")
+		gen.text.WriteString("  sub     rsp, 40\n")
+		gen.text.WriteString("  mov     BYTE [rsp+31], 10\n")
+		gen.text.WriteString("  lea     rcx, [rsp+30]\n")
+		gen.text.WriteString(".L2:\n")
+		gen.text.WriteString("  mov     rax, rdi\n")
+		gen.text.WriteString("  lea     r8, [rsp+32]\n")
+		gen.text.WriteString("  mul     r9\n")
+		gen.text.WriteString("  mov     rax, rdi\n")
+		gen.text.WriteString("  sub     r8, rcx\n")
+		gen.text.WriteString("  shr     rdx, 3\n")
+		gen.text.WriteString("  lea     rsi, [rdx+rdx*4]\n")
+		gen.text.WriteString("  add     rsi, rsi\n")
+		gen.text.WriteString("  sub     rax, rsi\n")
+		gen.text.WriteString("  add     eax, 48\n")
+		gen.text.WriteString("  mov     BYTE [rcx], al\n")
+		gen.text.WriteString("  mov     rax, rdi\n")
+		gen.text.WriteString("  mov     rdi, rdx\n")
+		gen.text.WriteString("  mov     rdx, rcx\n")
+		gen.text.WriteString("  sub     rcx, 1\n")
+		gen.text.WriteString("  cmp     rax, 9\n")
+		gen.text.WriteString("  ja      .L2\n")
+		gen.text.WriteString("  lea     rax, [rsp+32]\n")
+		gen.text.WriteString("  mov     edi, 1\n")
+		gen.text.WriteString("  sub     rdx, rax\n")
+		gen.text.WriteString("  xor     eax, eax\n")
+		gen.text.WriteString("  lea     rsi, [rsp+32+rdx]\n")
+		gen.text.WriteString("  mov     rdx, r8\n")
+		gen.text.WriteString("  mov     rax, 1\n")
+		gen.text.WriteString("  syscall\n")
+		gen.text.WriteString("  add     rsp, 40\n")
+		gen.text.WriteString("  ret\n")
+		gen.text.WriteString("\n")
+	}
 
 	gen.text.WriteString("_start:\n")
 	for idx, inst := range program {
@@ -89,52 +91,29 @@ func generateX8664Instruction(gen *x86_64Generator, inst Instruction) {
 		gen.text.WriteString("  push rax\n")
 		gen.text.WriteString(fmt.Sprintf("  push str_%d\n", len(gen.strings)))
 		gen.strings = append(gen.strings, inst.ValueString)
-	case InstKeyword:
-		generateX8664Keyword(gen, inst.ValueKeyword)
+	case InstKindTestCondition:
+		gen.text.WriteString("  ;; test condition\n")
+		gen.text.WriteString("  pop rax\n")
+		gen.text.WriteString("  test rax, rax\n")
+		gen.text.WriteString(fmt.Sprintf("  jz addr_%d\n", inst.JmpAddress))
+	case InstKindElse:
+		gen.text.WriteString("  ;; else\n")
+		gen.text.WriteString(fmt.Sprintf("  jmp addr_%d\n", inst.JmpAddress))
+	case InstKindWhile:
+		gen.text.WriteString("  ;; while\n")
+	case InstKindEnd:
+		gen.text.WriteString("  ;; end\n")
+		gen.text.WriteString(fmt.Sprintf("  jmp addr_%d\n", inst.JmpAddress))
+	case InstKindFunSkip:
+		gen.text.WriteString("  ;; fun skip\n")
+		gen.text.WriteString(fmt.Sprintf("  jmp addr_%d\n", inst.JmpAddress))
+	case InstKindFunDef:
+	case InstKindFunRet:
+	case InstKindFunCall:
 	case InstKindIntrinsic:
 		generateX8664Intrinsic(gen, inst.ValueIntrinsic)
-	case InstKindFunCall:
-		gen.text.WriteString("  ;; funcall\n")
-		gen.text.WriteString(fmt.Sprintf("  call addr_%d\n", inst.ValueFunCall))
 	default:
 		panic(fmt.Sprintf("unknown instruction kind '%s'", inst.Kind))
-	}
-}
-
-func generateX8664Keyword(gen *x86_64Generator, keyword Keyword) {
-	switch keyword.Kind {
-	case KeywordKindIf:
-		gen.text.WriteString("  ;; if\n")
-		gen.text.WriteString("  pop rax\n")
-		gen.text.WriteString("  test rax, rax\n")
-		gen.text.WriteString(fmt.Sprintf("  jz addr_%d\n", keyword.JmpAddress))
-	case KeywordKindElse:
-		gen.text.WriteString("  ;; else\n")
-		gen.text.WriteString(fmt.Sprintf("  jmp addr_%d\n", keyword.JmpAddress))
-	case KeywordKindEnd:
-		gen.text.WriteString("  ;; end\n")
-		if keyword.HasJmp {
-			gen.text.WriteString(fmt.Sprintf("  jmp addr_%d\n", keyword.JmpAddress))
-		}
-		if keyword.IsRet {
-			gen.text.WriteString("  push r15\n")
-			gen.text.WriteString("  ret\n")
-		}
-	case KeywordKindWhile:
-		gen.text.WriteString("  ;; while\n")
-	case KeywordKindDo:
-		gen.text.WriteString("  ;; do\n")
-		gen.text.WriteString("  pop rax\n")
-		gen.text.WriteString("  test rax, rax\n")
-		gen.text.WriteString(fmt.Sprintf("  jz addr_%d\n", keyword.JmpAddress))
-	case KeywordKindDef:
-		gen.text.WriteString("  ;; def\n")
-		gen.text.WriteString(fmt.Sprintf("  jmp addr_%d\n", keyword.JmpAddress))
-	case KeywordKindDefName:
-		gen.text.WriteString("  ;; def name\n")
-		gen.text.WriteString("  pop r15\n")
-	default:
-		panic(fmt.Sprintf("unknown keyword '%s'", keyword.Kind))
 	}
 }
 

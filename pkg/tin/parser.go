@@ -8,7 +8,7 @@ import (
 func parseProgramFromTokens(tokens []token) (program Program) {
 	var ipStack []int
 	var ip int = 0
-	var defStack map[string]int = make(map[string]int)
+	var funStack map[string]int = make(map[string]int)
 
 	for len(tokens) > 0 {
 		switch tokens[0].kind {
@@ -33,82 +33,110 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 			tokens = tokens[1:]
 			ip++
 		case tokenKindKeyword:
-			keyword, exist := keywordMap[tokens[0].value]
-			if !exist {
-				panic(fmt.Sprintf("%s: unknown keyword '%s'", tokens[0].location, tokens[0].value))
-			}
-			program = append(program, Instruction{
-				Kind:         InstKeyword,
-				ValueKeyword: Keyword{Kind: keyword},
-				token:        tokens[0],
-			})
-			tokens = tokens[1:]
-
+			keyword := tokens[0].value
 			switch keyword {
-			case KeywordKindIf:
+			case "if":
+				program = append(program, Instruction{
+					Kind:  InstKindTestCondition,
+					token: tokens[0],
+				})
+				tokens = tokens[1:]
 				ipStack = append(ipStack, ip)
 				ip++
-			case KeywordKindElse:
+			case "else":
 				if len(ipStack) == 0 {
 					panic("cannot parse the else of a non existing if")
 				}
 				if_addr := ipStack[len(ipStack)-1]
 				ipStack = ipStack[:len(ipStack)-1]
 				ipStack = append(ipStack, ip)
-				program[if_addr].ValueKeyword.HasJmp = true
-				program[if_addr].ValueKeyword.JmpAddress = ip + 1
+				program = append(program, Instruction{
+					Kind:  InstKindElse,
+					token: tokens[0],
+				})
+				tokens = tokens[1:]
+				program[if_addr].JmpAddress = ip + 1
 				ip++
-			case KeywordKindWhile:
+			case "while":
+				program = append(program, Instruction{
+					Kind:  InstKindWhile,
+					token: tokens[0],
+				})
+				tokens = tokens[1:]
 				ipStack = append(ipStack, ip)
 				ip++
-			case KeywordKindDo:
+			case "do":
 				if len(ipStack) == 0 {
 					panic("'do' used without a preceding 'while'")
 				}
-				while_addr := ipStack[len(ipStack)-1]
-				ipStack = ipStack[:len(ipStack)-1]
-
-				inst := program[while_addr]
-				if inst.Kind != InstKeyword || inst.ValueKeyword.Kind != KeywordKindWhile {
-					panic("unexpected preceder parsing 'do'")
-				}
-				program[ip].ValueKeyword.HasJmp = true
-				program[ip].ValueKeyword.JmpAddress = while_addr
+				program = append(program, Instruction{
+					Kind:  InstKindTestCondition,
+					token: tokens[0],
+				})
+				tokens = tokens[1:]
 				ipStack = append(ipStack, ip)
 				ip++
-			case KeywordKindEnd:
+			case "end":
 				if len(ipStack) == 0 {
-					panic("'end' used without a preceding 'if' or 'while'")
+					panic("'end' used without a preceding 'if', 'while', 'def'")
 				}
-				inst_addr := ipStack[len(ipStack)-1]
+				prec_addr := ipStack[len(ipStack)-1]
 				ipStack = ipStack[:len(ipStack)-1]
 
-				inst := program[inst_addr]
-				if inst.Kind != InstKeyword {
-					panic("unexpected preceder parsing 'end'")
-				}
-				switch program[inst_addr].ValueKeyword.Kind {
-				case KeywordKindIf:
-					program[inst_addr].ValueKeyword.HasJmp = true
-					program[inst_addr].ValueKeyword.JmpAddress = ip + 1
-				case KeywordKindElse:
-					program[inst_addr].ValueKeyword.HasJmp = true
-					program[inst_addr].ValueKeyword.JmpAddress = ip + 1
-				case KeywordKindDo:
-					program[ip].ValueKeyword.HasJmp = true
-					program[ip].ValueKeyword.JmpAddress = program[inst_addr].ValueKeyword.JmpAddress
-					program[inst_addr].ValueKeyword.HasJmp = true
-					program[inst_addr].ValueKeyword.JmpAddress = ip + 1
-				case KeywordKindDef:
-					program[inst_addr].ValueKeyword.HasJmp = true
-					program[inst_addr].ValueKeyword.JmpAddress = ip + 1
-					program[ip].ValueKeyword.IsRet = true
+				inst := program[prec_addr]
+				switch inst.Kind {
+				case InstKindTestCondition:
+					endJmpAddr := ip + 1
+					if len(ipStack) > 0 && program[ipStack[len(ipStack)-1]].Kind == InstKindWhile {
+						endJmpAddr = ipStack[len(ipStack)-1]
+						ipStack = ipStack[1:]
+					} else {
+						program[prec_addr].JmpAddress = ip + 1
+					}
+					program = append(program, Instruction{
+						Kind:       InstKindEnd,
+						token:      tokens[0],
+						JmpAddress: endJmpAddr,
+					})
+					tokens = tokens[1:]
+				case InstKindElse:
+					program[prec_addr].JmpAddress = ip + 1
+					program = append(program, Instruction{
+						Kind:       InstKindEnd,
+						token:      tokens[0],
+						JmpAddress: ip + 1,
+					})
+					tokens = tokens[1:]
+				case InstKindFunSkip:
+					program[prec_addr].JmpAddress = ip + 1
+					program = append(program, Instruction{
+						Kind:  InstKindFunRet,
+						token: tokens[0],
+					})
+					tokens = tokens[1:]
 				default:
-					panic(fmt.Sprintf("unexpected keyword '%s' as the preceder of 'end'", inst.ValueKeyword.Kind))
+					panic(fmt.Sprintf("unexpected keyword '%s' as the preceder of 'end'", inst.Kind))
 				}
 				ip++
-			case KeywordKindDef:
+			case "def":
+				program = append(program, Instruction{
+					Kind:  InstKindFunSkip,
+					token: tokens[0],
+				})
+				program = append(program, Instruction{
+					Kind:  InstKindFunDef,
+					token: tokens[0],
+				})
+				tokens = tokens[1:]
 				ipStack = append(ipStack, ip)
+				ip++
+
+				if len(tokens) == 0 {
+					panic("'def' used without a name")
+				}
+				funName := tokens[0].value
+				tokens = tokens[1:]
+				funStack[funName] = ip
 				ip++
 			default:
 				panic(fmt.Sprintf("unknown keyword '%s'", keyword))
@@ -125,36 +153,19 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 				tokens = tokens[1:]
 				ip++
 			} else {
-				if len(ipStack) > 0 {
-					// check if word is the name of a function
-					def_addr := ipStack[len(ipStack)-1]
-					inst := program[def_addr]
-					if inst.Kind != InstKeyword || program[ipStack[len(ipStack)-1]].ValueKeyword.Kind != KeywordKindDef {
-						panic("boh")
-					}
-
+				// a function call
+				if fun_addr, ok := funStack[tokens[0].value]; ok {
 					program = append(program, Instruction{
-						Kind:         InstKeyword,
-						ValueKeyword: Keyword{Kind: KeywordKindDefName},
-						token:        tokens[0],
+						Kind:       InstKindFunCall,
+						JmpAddress: fun_addr,
+						token:      tokens[0],
 					})
-					defStack[tokens[0].value] = ip
 					tokens = tokens[1:]
 					ip++
 				} else {
-					// a function call
-					if fun_addr, ok := defStack[tokens[0].value]; ok {
-						program = append(program, Instruction{
-							Kind:         InstKindFunCall,
-							ValueFunCall: fun_addr,
-							token:        tokens[0],
-						})
-						tokens = tokens[1:]
-						ip++
-					} else {
-						panic(fmt.Sprintf("%s: unknown intrinsic '%s'", tokens[0].location, tokens[0].value))
-					}
+					panic(fmt.Sprintf("%s: unknown word '%s'", tokens[0].location, tokens[0].value))
 				}
+
 			}
 		default:
 			panic("there is a problem with 'parseProgramFromTokens' because this should be unreachable")
