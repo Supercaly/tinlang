@@ -57,6 +57,9 @@ func generateNasmX8664(program Program) string {
 	}
 
 	gen.text.WriteString("_start:\n")
+	gen.text.WriteString("  mov rax, ret_stack\n")
+	gen.text.WriteString("  mov [ret_base], rax\n")
+
 	for idx, inst := range program {
 		gen.text.WriteString(fmt.Sprintf("addr_%d:\n", idx))
 		generateX8664Instruction(&gen, inst)
@@ -75,6 +78,12 @@ func generateNasmX8664(program Program) string {
 	for idx, str := range gen.strings {
 		gen.text.WriteString(fmt.Sprintf("str_%d: db `%s`\n", idx, str))
 	}
+
+	// Bss section
+	gen.text.WriteString("\n")
+	gen.text.WriteString("section .bss\n")
+	gen.text.WriteString("	ret_base: resq 1\n")
+	gen.text.WriteString("	ret_stack: resb 1024\n")
 
 	return gen.text.String()
 }
@@ -108,8 +117,23 @@ func generateX8664Instruction(gen *x86_64Generator, inst Instruction) {
 		gen.text.WriteString("  ;; fun skip\n")
 		gen.text.WriteString(fmt.Sprintf("  jmp addr_%d\n", inst.JmpAddress))
 	case InstKindFunDef:
+		gen.text.WriteString("  ;; fun def\n")
+		gen.text.WriteString("  pop rax\n")
+		gen.text.WriteString("  mov rbx, [ret_base]\n")
+		gen.text.WriteString("  mov [rbx], rax\n")
+		gen.text.WriteString("  add rbx, 8\n")
+		gen.text.WriteString("  mov [ret_base], rbx\n")
 	case InstKindFunRet:
+		gen.text.WriteString("  ;; fun ret\n")
+		gen.text.WriteString("  mov rbx, [ret_base]\n")
+		gen.text.WriteString("  sub rbx, 8\n")
+		gen.text.WriteString("  mov [ret_base], rbx\n")
+		gen.text.WriteString("  mov rax, [rbx]\n")
+		gen.text.WriteString("  push rax\n")
+		gen.text.WriteString("  ret\n")
 	case InstKindFunCall:
+		gen.text.WriteString("  ;; fun call\n")
+		gen.text.WriteString(fmt.Sprintf("  call addr_%d\n", inst.JmpAddress))
 	case InstKindIntrinsic:
 		generateX8664Intrinsic(gen, inst.ValueIntrinsic)
 	default:
