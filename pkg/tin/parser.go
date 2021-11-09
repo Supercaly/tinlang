@@ -2,13 +2,25 @@ package tin
 
 import (
 	"fmt"
+	"io/ioutil"
 	"strconv"
 )
 
-func parseProgramFromTokens(tokens []token) (program Program) {
-	var ipStack []int
-	var ip int = 0
-	var funStack map[string]int = make(map[string]int)
+const (
+	maxIncludeLevel int = 100
+)
+
+type parser struct {
+	ip           int
+	ipStack      []int
+	funStack     map[string]int
+	includeLevel int
+}
+
+func (p *parser) parseProgramFromTokens(tokens []token) (program Program) {
+	if p.funStack == nil {
+		p.funStack = make(map[string]int)
+	}
 
 	for len(tokens) > 0 {
 		switch tokens[0].kind {
@@ -23,7 +35,7 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 				token:    tokens[0],
 			})
 			tokens = tokens[1:]
-			ip++
+			p.ip++
 		case tokenKindStringLit:
 			program = append(program, Instruction{
 				Kind:        InstKindPushString,
@@ -31,7 +43,7 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 				token:       tokens[0],
 			})
 			tokens = tokens[1:]
-			ip++
+			p.ip++
 		case tokenKindKeyword:
 			keyword := tokens[0].value
 			switch keyword {
@@ -41,32 +53,32 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 					token: tokens[0],
 				})
 				tokens = tokens[1:]
-				ipStack = append(ipStack, ip)
-				ip++
+				p.ipStack = append(p.ipStack, p.ip)
+				p.ip++
 			case "else":
-				if len(ipStack) == 0 {
+				if len(p.ipStack) == 0 {
 					panic("cannot parse the else of a non existing if")
 				}
-				if_addr := ipStack[len(ipStack)-1]
-				ipStack = ipStack[:len(ipStack)-1]
-				ipStack = append(ipStack, ip)
+				if_addr := p.ipStack[len(p.ipStack)-1]
+				p.ipStack = p.ipStack[:len(p.ipStack)-1]
+				p.ipStack = append(p.ipStack, p.ip)
 				program = append(program, Instruction{
 					Kind:  InstKindElse,
 					token: tokens[0],
 				})
 				tokens = tokens[1:]
-				program[if_addr].JmpAddress = ip + 1
-				ip++
+				program[if_addr].JmpAddress = p.ip + 1
+				p.ip++
 			case "while":
 				program = append(program, Instruction{
 					Kind:  InstKindWhile,
 					token: tokens[0],
 				})
 				tokens = tokens[1:]
-				ipStack = append(ipStack, ip)
-				ip++
+				p.ipStack = append(p.ipStack, p.ip)
+				p.ip++
 			case "do":
-				if len(ipStack) == 0 {
+				if len(p.ipStack) == 0 {
 					panic("'do' used without a preceding 'while'")
 				}
 				program = append(program, Instruction{
@@ -74,24 +86,24 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 					token: tokens[0],
 				})
 				tokens = tokens[1:]
-				ipStack = append(ipStack, ip)
-				ip++
+				p.ipStack = append(p.ipStack, p.ip)
+				p.ip++
 			case "end":
-				if len(ipStack) == 0 {
+				if len(p.ipStack) == 0 {
 					panic("'end' used without a preceding 'if', 'while', 'def'")
 				}
-				prec_addr := ipStack[len(ipStack)-1]
-				ipStack = ipStack[:len(ipStack)-1]
+				prec_addr := p.ipStack[len(p.ipStack)-1]
+				p.ipStack = p.ipStack[:len(p.ipStack)-1]
 
 				inst := program[prec_addr]
 				switch inst.Kind {
 				case InstKindTestCondition:
-					endJmpAddr := ip + 1
-					if len(ipStack) > 0 && program[ipStack[len(ipStack)-1]].Kind == InstKindWhile {
-						endJmpAddr = ipStack[len(ipStack)-1]
-						ipStack = ipStack[1:]
+					endJmpAddr := p.ip + 1
+					if len(p.ipStack) > 0 && program[p.ipStack[len(p.ipStack)-1]].Kind == InstKindWhile {
+						endJmpAddr = p.ipStack[len(p.ipStack)-1]
+						p.ipStack = p.ipStack[1:]
 					} else {
-						program[prec_addr].JmpAddress = ip + 1
+						program[prec_addr].JmpAddress = p.ip + 1
 					}
 					program = append(program, Instruction{
 						Kind:       InstKindEnd,
@@ -100,15 +112,15 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 					})
 					tokens = tokens[1:]
 				case InstKindElse:
-					program[prec_addr].JmpAddress = ip + 1
+					program[prec_addr].JmpAddress = p.ip + 1
 					program = append(program, Instruction{
 						Kind:       InstKindEnd,
 						token:      tokens[0],
-						JmpAddress: ip + 1,
+						JmpAddress: p.ip + 1,
 					})
 					tokens = tokens[1:]
 				case InstKindFunSkip:
-					program[prec_addr].JmpAddress = ip + 1
+					program[prec_addr].JmpAddress = p.ip + 1
 					program = append(program, Instruction{
 						Kind:  InstKindFunRet,
 						token: tokens[0],
@@ -117,7 +129,7 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 				default:
 					panic(fmt.Sprintf("unexpected keyword '%s' as the preceder of 'end'", inst.Kind))
 				}
-				ip++
+				p.ip++
 			case "def":
 				program = append(program, Instruction{
 					Kind:  InstKindFunSkip,
@@ -128,16 +140,35 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 					token: tokens[0],
 				})
 				tokens = tokens[1:]
-				ipStack = append(ipStack, ip)
-				ip++
+				p.ipStack = append(p.ipStack, p.ip)
+				p.ip++
 
 				if len(tokens) == 0 {
 					panic("'def' used without a name")
 				}
 				funName := tokens[0].value
 				tokens = tokens[1:]
-				funStack[funName] = ip
-				ip++
+				p.funStack[funName] = p.ip
+				p.ip++
+			case "include":
+				tokens = tokens[1:]
+				if len(tokens) == 0 || tokens[0].kind != tokenKindStringLit {
+					panic("expected location after include")
+				}
+				includePath := tokens[0].value
+				tokens = tokens[1:]
+
+				if p.includeLevel+1 > maxIncludeLevel {
+					panic("max include lever reached")
+				}
+				p.includeLevel++
+				source, err := ioutil.ReadFile(includePath)
+				if err != nil {
+					panic(err)
+				}
+				tokens := tokenizeSource(string(source), includePath)
+				program = append(program, p.parseProgramFromTokens(tokens)...)
+				p.includeLevel--
 			default:
 				panic(fmt.Sprintf("unknown keyword '%s'", keyword))
 			}
@@ -151,17 +182,17 @@ func parseProgramFromTokens(tokens []token) (program Program) {
 					token:          tokens[0],
 				})
 				tokens = tokens[1:]
-				ip++
+				p.ip++
 			} else {
 				// a function call
-				if fun_addr, ok := funStack[tokens[0].value]; ok {
+				if fun_addr, ok := p.funStack[tokens[0].value]; ok {
 					program = append(program, Instruction{
 						Kind:       InstKindFunCall,
 						JmpAddress: fun_addr,
 						token:      tokens[0],
 					})
 					tokens = tokens[1:]
-					ip++
+					p.ip++
 				} else {
 					panic(fmt.Sprintf("%s: unknown word '%s'", tokens[0].location, tokens[0].value))
 				}

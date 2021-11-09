@@ -25,7 +25,8 @@ func CompileFile(option CompilerOption) (err error) {
 
 	tokens := tokenizeSource(string(source), option.InputPath)
 	fmt.Println(tokens)
-	program := parseProgramFromTokens(tokens)
+	parser := parser{}
+	program := parser.parseProgramFromTokens(tokens)
 	asm := generateNasmX8664(program)
 
 	if e := ioutil.WriteFile(option.OutputPath, []byte(asm), os.ModePerm); e != nil {

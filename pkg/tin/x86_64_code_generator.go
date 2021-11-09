@@ -10,6 +10,11 @@ type x86_64Generator struct {
 	strings []string
 }
 
+const (
+	addressPrefix string = "addr"
+	stringPrefix  string = "str"
+)
+
 func generateNasmX8664(program Program) string {
 	gen := x86_64Generator{}
 
@@ -61,12 +66,12 @@ func generateNasmX8664(program Program) string {
 	gen.text.WriteString("  mov [ret_base], rax\n")
 
 	for idx, inst := range program {
-		gen.text.WriteString(fmt.Sprintf("addr_%d:\n", idx))
+		gen.text.WriteString(fmt.Sprintf("%s:\n", getAddrName(idx)))
 		generateX8664Instruction(&gen, inst)
 	}
 
 	gen.text.WriteString("\n")
-	gen.text.WriteString(fmt.Sprintf("addr_%d:\n", len(program)))
+	gen.text.WriteString(fmt.Sprintf("%s:\n", getAddrName(len(program))))
 	gen.text.WriteString("  ;; exit syscall\n")
 	gen.text.WriteString("  mov rax, 0x3c\n")
 	gen.text.WriteString("  mov rdi, 0\n")
@@ -76,7 +81,7 @@ func generateNasmX8664(program Program) string {
 	gen.text.WriteString("\n")
 	gen.text.WriteString("section .data\n")
 	for idx, str := range gen.strings {
-		gen.text.WriteString(fmt.Sprintf("str_%d: db `%s`\n", idx, str))
+		gen.text.WriteString(fmt.Sprintf("%s: db `%s`\n", getStringName(idx), str))
 	}
 
 	// Bss section
@@ -104,18 +109,18 @@ func generateX8664Instruction(gen *x86_64Generator, inst Instruction) {
 		gen.text.WriteString("  ;; test condition\n")
 		gen.text.WriteString("  pop rax\n")
 		gen.text.WriteString("  test rax, rax\n")
-		gen.text.WriteString(fmt.Sprintf("  jz addr_%d\n", inst.JmpAddress))
+		gen.text.WriteString(fmt.Sprintf("  jz %s\n", getAddrName(inst.JmpAddress)))
 	case InstKindElse:
 		gen.text.WriteString("  ;; else\n")
-		gen.text.WriteString(fmt.Sprintf("  jmp addr_%d\n", inst.JmpAddress))
+		gen.text.WriteString(fmt.Sprintf("  jmp %s\n", getAddrName(inst.JmpAddress)))
 	case InstKindWhile:
 		gen.text.WriteString("  ;; while\n")
 	case InstKindEnd:
 		gen.text.WriteString("  ;; end\n")
-		gen.text.WriteString(fmt.Sprintf("  jmp addr_%d\n", inst.JmpAddress))
+		gen.text.WriteString(fmt.Sprintf("  jmp %s\n", getAddrName(inst.JmpAddress)))
 	case InstKindFunSkip:
 		gen.text.WriteString("  ;; fun skip\n")
-		gen.text.WriteString(fmt.Sprintf("  jmp addr_%d\n", inst.JmpAddress))
+		gen.text.WriteString(fmt.Sprintf("  jmp %s\n", getAddrName(inst.JmpAddress)))
 	case InstKindFunDef:
 		gen.text.WriteString("  ;; fun def\n")
 		gen.text.WriteString("  pop rax\n")
@@ -133,7 +138,7 @@ func generateX8664Instruction(gen *x86_64Generator, inst Instruction) {
 		gen.text.WriteString("  ret\n")
 	case InstKindFunCall:
 		gen.text.WriteString("  ;; fun call\n")
-		gen.text.WriteString(fmt.Sprintf("  call addr_%d\n", inst.JmpAddress))
+		gen.text.WriteString(fmt.Sprintf("  call %s\n", getAddrName(inst.JmpAddress)))
 	case InstKindIntrinsic:
 		generateX8664Intrinsic(gen, inst.ValueIntrinsic)
 	default:
@@ -257,4 +262,12 @@ func generateX8664Intrinsic(gen *x86_64Generator, intrinsic Intrinsic) {
 	default:
 		panic(fmt.Sprintf("unknown intrinsic '%s'", intrinsic))
 	}
+}
+
+func getAddrName(addr int) string {
+	return fmt.Sprintf("%s_%d", addressPrefix, addr)
+}
+
+func getStringName(strNum int) string {
+	return fmt.Sprintf("%s_%d", stringPrefix, strNum)
 }

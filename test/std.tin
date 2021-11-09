@@ -1,0 +1,3 @@
+def puts 1 1 syscall3 end
+
+def putd print end
