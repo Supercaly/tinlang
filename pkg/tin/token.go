@@ -27,7 +27,7 @@ const (
 	commentRegexStr   string = `^#.*`
 	intLitRegexStr    string = `^\d+`
 	stringLitRegexStr string = `^"([^"\\]|\\.)*"`
-	keywordRegexStr   string = `^(if|else|end|while|do|def|include)`
+	keywordRegexStr   string = `^(if|else|end|while|do|def|include|memory)`
 )
 
 func tokenizeSource(source string, fileName string) (out []token) {

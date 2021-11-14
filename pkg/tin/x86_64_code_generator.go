@@ -89,6 +89,8 @@ func generateNasmX8664(program Program) string {
 	gen.text.WriteString("section .bss\n")
 	gen.text.WriteString("	ret_base: resq 1\n")
 	gen.text.WriteString("	ret_stack: resb 1024\n")
+	// TODO: set mem size from parser
+	gen.text.WriteString("	mem: resb 640000\n")
 
 	return gen.text.String()
 }
@@ -139,6 +141,11 @@ func generateX8664Instruction(gen *x86_64Generator, inst Instruction) {
 	case InstKindFunCall:
 		gen.text.WriteString("  ;; fun call\n")
 		gen.text.WriteString(fmt.Sprintf("  call %s\n", getAddrName(inst.JmpAddress)))
+	case InstKindMemPush:
+		gen.text.WriteString("  ;; mem push\n")
+		gen.text.WriteString("  mov rax, mem\n")
+		gen.text.WriteString(fmt.Sprintf("  add rax, %d\n", inst.ValueMemory))
+		gen.text.WriteString("  push rax\n")
 	case InstKindIntrinsic:
 		generateX8664Intrinsic(gen, inst.ValueIntrinsic)
 	default:
@@ -259,6 +266,39 @@ func generateX8664Intrinsic(gen *x86_64Generator, intrinsic Intrinsic) {
 		gen.text.WriteString("  pop r8\n")
 		gen.text.WriteString("  pop r9\n")
 		gen.text.WriteString("  syscall\n")
+	case IntrinsicLoad8:
+		gen.text.WriteString("  ;; load 8\n")
+		gen.text.WriteString("  pop rax\n")
+		gen.text.WriteString("  xor rbx, rbx\n")
+		gen.text.WriteString("  mov bl, [rax]\n")
+		gen.text.WriteString("  push rbx\n")
+	case IntrinsicStore8:
+		gen.text.WriteString("  ;; store 8\n")
+		gen.text.WriteString("  pop rax\n")
+		gen.text.WriteString("  pop rbx\n")
+		gen.text.WriteString("  mov [rax], bl\n")
+	case IntrinsicLoad32:
+		gen.text.WriteString("  ;; load 32\n")
+		gen.text.WriteString("  pop rax\n")
+		gen.text.WriteString("  xor rbx, rbx\n")
+		gen.text.WriteString("  mov ebx, [rax]\n")
+		gen.text.WriteString("  push rbx\n")
+	case IntrinsicStore32:
+		gen.text.WriteString("  ;; store 32\n")
+		gen.text.WriteString("  pop rax\n")
+		gen.text.WriteString("  pop rbx\n")
+		gen.text.WriteString("  mov [rax], ebx\n")
+	case IntrinsicLoad64:
+		gen.text.WriteString("  ;; load 64\n")
+		gen.text.WriteString("  pop rax\n")
+		gen.text.WriteString("  xor rbx, rbx\n")
+		gen.text.WriteString("  mov rbx, [rax]\n")
+		gen.text.WriteString("  push rbx\n")
+	case IntrinsicStore64:
+		gen.text.WriteString("  ;; store 64\n")
+		gen.text.WriteString("  pop rax\n")
+		gen.text.WriteString("  pop rbx\n")
+		gen.text.WriteString("  mov [rax], rbx\n")
 	default:
 		panic(fmt.Sprintf("unknown intrinsic '%s'", intrinsic))
 	}

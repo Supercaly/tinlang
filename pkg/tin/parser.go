@@ -11,15 +11,20 @@ const (
 )
 
 type parser struct {
-	ip           int
-	ipStack      []int
-	funStack     map[string]int
-	includeLevel int
+	ip             int
+	ipStack        []int
+	funStack       map[string]int
+	memoryStack    map[string]int
+	memoryCapacity int
+	includeLevel   int
 }
 
 func (p *parser) parseProgramFromTokens(tokens []token) (program Program) {
 	if p.funStack == nil {
 		p.funStack = make(map[string]int)
+	}
+	if p.memoryStack == nil {
+		p.memoryStack = make(map[string]int)
 	}
 
 	for len(tokens) > 0 {
@@ -150,6 +155,31 @@ func (p *parser) parseProgramFromTokens(tokens []token) (program Program) {
 				tokens = tokens[1:]
 				p.funStack[funName] = p.ip
 				p.ip++
+			case "memory":
+				tokens = tokens[1:]
+				if len(tokens) == 0 {
+					panic("'memory' used without a name")
+				}
+				memName := tokens[0]
+				tokens = tokens[1:]
+				if _, exist := p.memoryStack[memName.value]; exist {
+					panic(fmt.Sprintf("memory %s already defined", memName.value))
+				}
+				if len(tokens) == 0 {
+					panic("expecting a memory size")
+				}
+				memSize := tokens[0]
+				tokens = tokens[1:]
+				if len(tokens) == 0 || tokens[0].value != "end" {
+					panic("'memory' used whitout an end")
+				}
+				tokens = tokens[1:]
+				memSizeInt, err := strconv.ParseUint(memSize.value, 10, 64)
+				if err != nil {
+					panic(err)
+				}
+				p.memoryStack[memName.value] = p.memoryCapacity
+				p.memoryCapacity += int(memSizeInt)
 			case "include":
 				tokens = tokens[1:]
 				if len(tokens) == 0 || tokens[0].kind != tokenKindStringLit {
@@ -184,12 +214,21 @@ func (p *parser) parseProgramFromTokens(tokens []token) (program Program) {
 				tokens = tokens[1:]
 				p.ip++
 			} else {
-				// a function call
 				if fun_addr, ok := p.funStack[tokens[0].value]; ok {
+					// a function call
 					program = append(program, Instruction{
 						Kind:       InstKindFunCall,
 						JmpAddress: fun_addr,
 						token:      tokens[0],
+					})
+					tokens = tokens[1:]
+					p.ip++
+				} else if mem_offset, ok := p.memoryStack[tokens[0].value]; ok {
+					// a memory allocation
+					program = append(program, Instruction{
+						Kind:        InstKindMemPush,
+						ValueMemory: mem_offset,
+						token:       tokens[0],
 					})
 					tokens = tokens[1:]
 					p.ip++

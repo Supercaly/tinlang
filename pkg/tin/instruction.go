@@ -18,6 +18,8 @@ const (
 	InstKindFunDef
 	InstKindFunRet
 	InstKindFunCall
+
+	InstKindMemPush
 )
 
 type Instruction struct {
@@ -26,6 +28,7 @@ type Instruction struct {
 	ValueInt       int
 	ValueString    string
 	ValueIntrinsic Intrinsic
+	ValueMemory    int
 	JmpAddress     int
 }
 
@@ -52,6 +55,13 @@ const (
 	IntrinsicSyscall4
 	IntrinsicSyscall5
 	IntrinsicSyscall6
+
+	IntrinsicLoad8
+	IntrinsicStore8
+	IntrinsicLoad32
+	IntrinsicStore32
+	IntrinsicLoad64
+	IntrinsicStore64
 )
 
 var intrinsicMap = map[string]Intrinsic{
@@ -71,6 +81,12 @@ var intrinsicMap = map[string]Intrinsic{
 	"syscall4": IntrinsicSyscall4,
 	"syscall5": IntrinsicSyscall5,
 	"syscall6": IntrinsicSyscall6,
+	"@8":       IntrinsicLoad8,
+	"!8":       IntrinsicStore8,
+	"@32":      IntrinsicLoad32,
+	"!32":      IntrinsicStore32,
+	"@64":      IntrinsicLoad64,
+	"!64":      IntrinsicStore64,
 }
 
 type Program []Instruction
@@ -117,6 +133,7 @@ func (ik InstKind) String() string {
 		"InstKindFunDef",
 		"InstKindFunRet",
 		"InstKindFunCall",
+		"InstKindMemPush",
 	}[ik]
 }
 
@@ -138,5 +155,11 @@ func (i Intrinsic) String() string {
 		"syscall4",
 		"syscall5",
 		"syscall6",
+		"IntrinsicLoad8",
+		"IntrinsicStore8",
+		"IntrinsicLoad32",
+		"IntrinsicStore32",
+		"IntrinsicLoad64",
+		"IntrinsicStore64",
 	}[i]
 }
