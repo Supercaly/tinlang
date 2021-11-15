@@ -1,1 +1,3 @@
-30 0 < if 1 else 2 end print
+include "test/std.tin"
+
+30 0 < if 1 else 2 end putd

@@ -1,7 +1,9 @@
+include "test/std.tin"
+
 memory a 1 end
 memory b 4 end
 memory c 8 end
 
-10 a !8 a @8 print
-255 b !32 b @32 print
-4050 c !64 c @64 print
+10 a !8 a @8 putd
+255 b !32 b @32 putd
+4050 c !64 c @64 putd

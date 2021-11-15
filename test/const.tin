@@ -1,0 +1,9 @@
+include "test/std.tin"
+
+const a 1 end
+const b 20 end
+const c a b + end
+
+a putd
+b putd
+c putd

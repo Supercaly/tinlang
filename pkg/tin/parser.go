@@ -16,6 +16,7 @@ type parser struct {
 	funStack       map[string]int
 	memoryStack    map[string]int
 	memoryCapacity int
+	constStack     map[string]int
 	includeLevel   int
 }
 
@@ -25,6 +26,9 @@ func (p *parser) parseProgramFromTokens(tokens []token) (program Program) {
 	}
 	if p.memoryStack == nil {
 		p.memoryStack = make(map[string]int)
+	}
+	if p.constStack == nil {
+		p.constStack = make(map[string]int)
 	}
 
 	for len(tokens) > 0 {
@@ -100,16 +104,15 @@ func (p *parser) parseProgramFromTokens(tokens []token) (program Program) {
 				prec_addr := p.ipStack[len(p.ipStack)-1]
 				p.ipStack = p.ipStack[:len(p.ipStack)-1]
 
-				inst := program[prec_addr]
-				switch inst.Kind {
+				switch program[prec_addr].Kind {
 				case InstKindTestCondition:
 					endJmpAddr := p.ip + 1
 					if len(p.ipStack) > 0 && program[p.ipStack[len(p.ipStack)-1]].Kind == InstKindWhile {
 						endJmpAddr = p.ipStack[len(p.ipStack)-1]
 						p.ipStack = p.ipStack[1:]
-					} else {
-						program[prec_addr].JmpAddress = p.ip + 1
 					}
+					program[prec_addr].JmpAddress = p.ip + 1
+
 					program = append(program, Instruction{
 						Kind:       InstKindEnd,
 						token:      tokens[0],
@@ -132,7 +135,7 @@ func (p *parser) parseProgramFromTokens(tokens []token) (program Program) {
 					})
 					tokens = tokens[1:]
 				default:
-					panic(fmt.Sprintf("unexpected keyword '%s' as the preceder of 'end'", inst.Kind))
+					panic(fmt.Sprintf("unexpected keyword '%s' as the preceder of 'end'", program[prec_addr].Kind))
 				}
 				p.ip++
 			case "def":
@@ -153,6 +156,7 @@ func (p *parser) parseProgramFromTokens(tokens []token) (program Program) {
 				}
 				funName := tokens[0].value
 				tokens = tokens[1:]
+				p.checkNameRedefinition(funName)
 				p.funStack[funName] = p.ip
 				p.ip++
 			case "memory":
@@ -160,11 +164,9 @@ func (p *parser) parseProgramFromTokens(tokens []token) (program Program) {
 				if len(tokens) == 0 {
 					panic("'memory' used without a name")
 				}
-				memName := tokens[0]
+				memName := tokens[0].value
 				tokens = tokens[1:]
-				if _, exist := p.memoryStack[memName.value]; exist {
-					panic(fmt.Sprintf("memory %s already defined", memName.value))
-				}
+				p.checkNameRedefinition(memName)
 				if len(tokens) == 0 {
 					panic("expecting a memory size")
 				}
@@ -178,8 +180,14 @@ func (p *parser) parseProgramFromTokens(tokens []token) (program Program) {
 				if err != nil {
 					panic(err)
 				}
-				p.memoryStack[memName.value] = p.memoryCapacity
+				p.memoryStack[memName] = p.memoryCapacity
 				p.memoryCapacity += int(memSizeInt)
+			case "const":
+				tokens = tokens[1:]
+				constName := tokens[0].value
+				tokens = tokens[1:]
+				p.checkNameRedefinition(constName)
+				p.constStack[constName] = p.evalConstValue(&tokens)
 			case "include":
 				tokens = tokens[1:]
 				if len(tokens) == 0 || tokens[0].kind != tokenKindStringLit {
@@ -232,6 +240,14 @@ func (p *parser) parseProgramFromTokens(tokens []token) (program Program) {
 					})
 					tokens = tokens[1:]
 					p.ip++
+				} else if const_val, ok := p.constStack[tokens[0].value]; ok {
+					// a const declaration
+					program = append(program, Instruction{
+						Kind:     InstKindPushInt,
+						ValueInt: const_val,
+						token:    tokens[0],
+					})
+					tokens = tokens[1:]
 				} else {
 					panic(fmt.Sprintf("%s: unknown word '%s'", tokens[0].location, tokens[0].value))
 				}
@@ -242,4 +258,71 @@ func (p *parser) parseProgramFromTokens(tokens []token) (program Program) {
 		}
 	}
 	return program
+}
+
+func (p parser) evalConstValue(tokens *[]token) int {
+	var stack []int
+
+evalLoop:
+	for len(*tokens) > 0 {
+		token := (*tokens)[0]
+		*tokens = (*tokens)[1:]
+
+		switch token.kind {
+		case tokenKindIntLit:
+			intVal, err := strconv.ParseUint(token.value, 10, 64)
+			if err != nil {
+				panic(err)
+			}
+			stack = append(stack, int(intVal))
+		case tokenKindKeyword:
+			if token.value == "end" {
+				break evalLoop
+			}
+			panic(fmt.Sprintf("unsupported %s in compile time evaluation", token.value))
+		case tokenKindWord:
+			if token.value == "+" {
+				if len(stack) < 2 {
+					panic("wrong number of operations for + in compile time evaluation")
+				}
+				newVal := stack[len(stack)-2] + stack[len(stack)-1]
+				stack = stack[1:]
+				stack[len(stack)-1] = newVal
+			} else if token.value == "-" {
+				if len(stack) < 2 {
+					panic("wrong number of operations for - in compile time evaluation")
+				}
+				newVal := stack[len(stack)-2] - stack[len(stack)-1]
+				stack = stack[1:]
+				stack[len(stack)-1] = newVal
+			} else if token.value == "*" {
+				if len(stack) < 2 {
+					panic("wrong number of operations for * in compile time evaluation")
+				}
+				newVal := stack[len(stack)-2] * stack[len(stack)-1]
+				stack = stack[1:]
+				stack[len(stack)-1] = newVal
+			} else if constVal, ok := p.constStack[token.value]; ok {
+				stack = append(stack, constVal)
+			} else {
+				panic(fmt.Sprintf("unsupported word %s in compile time evaluation", token.value))
+			}
+		default:
+			panic(fmt.Sprintf("unsupported %s in compile time evaluation", token.kind))
+		}
+	}
+
+	if len(stack) != 1 {
+		panic(fmt.Sprintf("compile time evaluation leaded %d values instead of 1", len(stack)))
+	}
+	return stack[0]
+}
+
+func (p parser) checkNameRedefinition(name string) {
+	_, isFun := p.funStack[name]
+	_, isMem := p.memoryStack[name]
+	_, isConst := p.constStack[name]
+	if isFun || isMem || isConst {
+		panic("name already used")
+	}
 }

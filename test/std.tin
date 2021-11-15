@@ -1,3 +1,5 @@
+# prints a string given his size and pointer.
 def puts 1 1 syscall3 end
 
+# prints a given number.
 def putd print end

@@ -1,1 +1,3 @@
-"A string"
+include "test/std.tin"
+
+"A string" puts

@@ -1,5 +1,7 @@
+include "test/std.tin"
+
 10
 while dup 1 - 0 != do
     1 -
-    dup print
+    dup putd
 end
